@@ -1,27 +1,31 @@
 import Image from 'next/image';
 import { lusitana } from '@/app/ui/fonts';
 import Search from '@/app/ui/search';
-import { FormattedCustomersTable } from '@/app/lib/definitions';
+import { Application } from '@/app/lib/types'; // Import the Application type
 
-export default async function CustomersTable({
-  customers,
-}: {
-  customers: FormattedCustomersTable[];
-}) {
+async function fetchDriverApplications(): Promise<Application[]> {
+  const response = await fetch('https://banturide-api.onrender.com/admin/get-driver-applications');
+  const data = await response.json();
+  return data.applications;
+}
+
+export default async function CustomersTable() {
+  const applications: Application[] = await fetchDriverApplications();
+
   return (
     <div className="w-full">
       <h1 className={`${lusitana.className} mb-8 text-xl md:text-2xl`}>
-        Customers
+        Driver Applications
       </h1>
-      <Search placeholder="Search customers..." />
+      <Search placeholder="Search drivers..." />
       <div className="mt-6 flow-root">
         <div className="overflow-x-auto">
           <div className="inline-block min-w-full align-middle">
             <div className="overflow-hidden rounded-md bg-gray-50 p-2 md:pt-0">
               <div className="md:hidden">
-                {customers?.map((customer) => (
+                {applications?.map((application) => (
                   <div
-                    key={customer.id}
+                    key={application.id}
                     className="mb-2 w-full rounded-md bg-white p-4"
                   >
                     <div className="flex items-center justify-between border-b pb-4">
@@ -29,32 +33,32 @@ export default async function CustomersTable({
                         <div className="mb-2 flex items-center">
                           <div className="flex items-center gap-3">
                             <Image
-                              src={customer.image_url}
+                              src={application.avatar}
                               className="rounded-full"
-                              alt={`${customer.name}'s profile picture`}
+                              alt={`${application.carMake} ${application.carModel}`}
                               width={28}
                               height={28}
                             />
-                            <p>{customer.name}</p>
+                            <p>{application.carMake} {application.carModel}</p>
                           </div>
                         </div>
                         <p className="text-sm text-gray-500">
-                          {customer.email}
+                          License: {application.licenseNumber}
                         </p>
                       </div>
                     </div>
                     <div className="flex w-full items-center justify-between border-b py-5">
                       <div className="flex w-1/2 flex-col">
-                        <p className="text-xs">Pending</p>
-                        <p className="font-medium">{customer.total_pending}</p>
+                        <p className="text-xs">Seats</p>
+                        <p className="font-medium">{application.seats}</p>
                       </div>
                       <div className="flex w-1/2 flex-col">
-                        <p className="text-xs">Paid</p>
-                        <p className="font-medium">{customer.total_paid}</p>
+                        <p className="text-xs">Car Color</p>
+                        <p className="font-medium">{application.carColor}</p>
                       </div>
                     </div>
                     <div className="pt-4 text-sm">
-                      <p>{customer.total_invoices} invoices</p>
+                      <p>Status: {application.driverVerificationStatus}</p>
                     </div>
                   </div>
                 ))}
@@ -63,49 +67,48 @@ export default async function CustomersTable({
                 <thead className="rounded-md bg-gray-50 text-left text-sm font-normal">
                   <tr>
                     <th scope="col" className="px-4 py-5 font-medium sm:pl-6">
-                      Name
+                      Car Make
                     </th>
                     <th scope="col" className="px-3 py-5 font-medium">
-                      Email
+                      License Number
                     </th>
                     <th scope="col" className="px-3 py-5 font-medium">
-                      Total Invoices
+                      Seats
                     </th>
                     <th scope="col" className="px-3 py-5 font-medium">
-                      Total Pending
+                      Car Color
                     </th>
                     <th scope="col" className="px-4 py-5 font-medium">
-                      Total Paid
+                      Status
                     </th>
                   </tr>
                 </thead>
-
                 <tbody className="divide-y divide-gray-200 text-gray-900">
-                  {customers.map((customer) => (
-                    <tr key={customer.id} className="group">
+                  {applications.map((application) => (
+                    <tr key={application.id} className="group">
                       <td className="whitespace-nowrap bg-white py-5 pl-4 pr-3 text-sm text-black group-first-of-type:rounded-md group-last-of-type:rounded-md sm:pl-6">
                         <div className="flex items-center gap-3">
                           <Image
-                            src={customer.image_url}
+                            src={application.avatar}
                             className="rounded-full"
-                            alt={`${customer.name}'s profile picture`}
+                            alt={`${application.carMake} ${application.carModel}`}
                             width={28}
                             height={28}
                           />
-                          <p>{customer.name}</p>
+                          <p>{application.carMake} {application.carModel}</p>
                         </div>
                       </td>
                       <td className="whitespace-nowrap bg-white px-4 py-5 text-sm">
-                        {customer.email}
+                        {application.licenseNumber}
                       </td>
                       <td className="whitespace-nowrap bg-white px-4 py-5 text-sm">
-                        {customer.total_invoices}
+                        {application.seats}
                       </td>
                       <td className="whitespace-nowrap bg-white px-4 py-5 text-sm">
-                        {customer.total_pending}
+                        {application.carColor}
                       </td>
-                      <td className="whitespace-nowrap bg-white px-4 py-5 text-sm group-first-of-type:rounded-md group-last-of-type:rounded-md">
-                        {customer.total_paid}
+                      <td className="whitespace-nowrap bg-white px-4 py-5 text-sm">
+                        {application.driverVerificationStatus}
                       </td>
                     </tr>
                   ))}

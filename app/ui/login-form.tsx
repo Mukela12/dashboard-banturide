@@ -12,8 +12,9 @@ import { Button } from './button';
 import { useActionState } from 'react';
 
 export default function LoginForm() {
+  // Add type annotations for parameters
   const [errorMessage, formAction, isPending] = useActionState(
-    authenticate,
+    async (_: unknown, formData: FormData) => authenticate(undefined, formData),
     undefined,
   );
 
@@ -75,7 +76,11 @@ export default function LoginForm() {
           {errorMessage && (
             <>
               <ExclamationCircleIcon className="h-5 w-5 text-red-500" />
-              <p className="text-sm text-red-500">{errorMessage}</p>
+              <p className="text-sm text-red-500">
+                {typeof errorMessage === 'string'
+                  ? errorMessage
+                  : errorMessage?.message}
+              </p>
             </>
           )}
         </div>

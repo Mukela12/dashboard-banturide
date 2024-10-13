@@ -1,50 +1,39 @@
-import {
-  BanknotesIcon,
-  ClockIcon,
-  UserGroupIcon,
-  InboxIcon,
-} from '@heroicons/react/24/outline';
+import { BanknotesIcon, ClockIcon, UserGroupIcon, InboxIcon } from '@heroicons/react/24/outline';
 import { lusitana } from '@/app/ui/fonts';
-import { fetchCardData } from '@/app/lib/data';
+import { Application, Complaint } from '@/app/lib/types'; // Import the types
 
-const iconMap = {
-  collected: BanknotesIcon,
-  customers: UserGroupIcon,
-  pending: ClockIcon,
-  invoices: InboxIcon,
-};
+async function fetchDriverApplications(): Promise<Application[]> {
+  const response = await fetch('https://banturide-api.onrender.com/admin/get-driver-applications');
+  const data = await response.json();
+  return data.applications;
+}
+
+async function fetchComplaints(): Promise<Complaint[]> {
+  const response = await fetch('https://banturide-api.onrender.com/admin/get-complaints');
+  const data = await response.json();
+  return data.complaints;
+}
 
 export default async function CardWrapper() {
-  const {
-    numberOfInvoices,
-    numberOfCustomers,
-    totalPaidInvoices,
-    totalPendingInvoices,
-  } = await fetchCardData();
+  const numberOfApplications = (await fetchDriverApplications()).length;
+  const numberOfComplaints = (await fetchComplaints()).length;
 
   return (
     <>
-      <Card title="Collected" value={totalPaidInvoices} type="collected" />
-      <Card title="Pending" value={totalPendingInvoices} type="pending" />
-      <Card title="Total Invoices" value={numberOfInvoices} type="invoices" />
-      <Card
-        title="Total Customers"
-        value={numberOfCustomers}
-        type="customers"
-      />
+      <Card title="Total Applications" value={numberOfApplications} type="invoices" />
+      <Card title="Total Complaints" value={numberOfComplaints} type="customers" />
     </>
   );
 }
 
-export function Card({
-  title,
-  value,
-  type,
-}: {
-  title: string;
-  value: number | string;
-  type: 'invoices' | 'customers' | 'pending' | 'collected';
-}) {
+export function Card({ title, value, type }: { title: string; value: number | string; type: 'invoices' | 'customers' | 'pending' | 'collected'; }) {
+  const iconMap = {
+    collected: BanknotesIcon,
+    customers: UserGroupIcon,
+    pending: ClockIcon,
+    invoices: InboxIcon,
+  };
+
   const Icon = iconMap[type];
 
   return (
