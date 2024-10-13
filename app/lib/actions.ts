@@ -1,139 +1,191 @@
 'use server';
 
 import { z } from 'zod';
-import { sql } from '@vercel/postgres';
-import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
-import { signIn } from '@/auth';
+import { signIn } from '@/auth'; // Assuming you are using NextAuth for authentication
 import { AuthError } from 'next-auth';
 
-const FormSchema = z.object({
-  id: z.string(),
-  customerId: z.string({
-    invalid_type_error: 'Please select a customer.',
-  }),
-  amount: z.coerce
-    .number()
-    .gt(0, { message: 'Please enter an amount greater than $0.' }),
-  status: z.enum(['pending', 'paid'], {
-    invalid_type_error: 'Please select an invoice status.',
-  }),
-  date: z.string(),
+// Define a schema for driver application creation and updates
+const DriverApplicationSchema = z.object({
+  name: z.string(),
+  licenseNumber: z.string(),
+  carMake: z.string(),
+  carModel: z.string(),
+  status: z.enum(['pending', 'approved', 'failed']).optional(),
 });
-
-const CreateInvoice = FormSchema.omit({ id: true, date: true });
-const UpdateInvoice = FormSchema.omit({ date: true, id: true });
 
 export type State = {
   errors?: {
-    customerId?: string[];
-    amount?: string[];
+    name?: string[];
+    licenseNumber?: string[];
+    carMake?: string[];
+    carModel?: string[];
     status?: string[];
   };
   message?: string | null;
 };
 
-export async function createInvoice(prevState: State, formData: FormData) {
-  // Validate form fields using Zod
-  const validatedFields = CreateInvoice.safeParse({
-    customerId: formData.get('customerId'),
-    amount: formData.get('amount'),
-    status: formData.get('status'),
-  });
-
-  // If form validation fails, return errors early. Otherwise, continue.
-  if (!validatedFields.success) {
-    return {
-      errors: validatedFields.error.flatten().fieldErrors,
-      message: 'Missing Fields. Failed to Create Invoice.',
-    };
-  }
-
-  // Prepare data for insertion into the database
-  const { customerId, amount, status } = validatedFields.data;
-  const amountInCents = amount * 100;
-  const date = new Date().toISOString().split('T')[0];
-
-  // Insert data into the database
+export async function authenticate(state: string | undefined, formData: FormData) {
   try {
-    await sql`
-      INSERT INTO invoices (customer_id, amount, status, date)
-      VALUES (${customerId}, ${amountInCents}, ${status}, ${date})
-    `;
-  } catch (error) {
-    // If a database error occurs, return a more specific error.
-    return {
-      message: 'Database Error: Failed to Create Invoice.',
-    };
-  }
+    const result = await signIn('credentials', {
+      redirect: false, // Prevent automatic redirection
+      email: formData.get('email'),
+      password: formData.get('password'),
+    });
 
-  // Revalidate the cache for the invoices page and redirect the user.
-  revalidatePath('/dashboard/invoices');
-  redirect('/dashboard/invoices');
-}
+    if (!result?.ok) {
+      return 'Invalid credentials.'; // Return string for error
+    }
 
-export async function updateInvoice(
-  id: string,
-  prevState: State,
-  formData: FormData,
-) {
-  const validatedFields = UpdateInvoice.safeParse({
-    customerId: formData.get('customerId'),
-    amount: formData.get('amount'),
-    status: formData.get('status'),
-  });
-
-  if (!validatedFields.success) {
-    return {
-      errors: validatedFields.error.flatten().fieldErrors,
-      message: 'Missing Fields. Failed to Update Invoice.',
-    };
-  }
-
-  const { customerId, amount, status } = validatedFields.data;
-  const amountInCents = amount * 100;
-
-  try {
-    await sql`
-      UPDATE invoices
-      SET customer_id = ${customerId}, amount = ${amountInCents}, status = ${status}
-      WHERE id = ${id}
-    `;
-  } catch (error) {
-    return { message: 'Database Error: Failed to Update Invoice.' };
-  }
-
-  revalidatePath('/dashboard/invoices');
-  redirect('/dashboard/invoices');
-}
-
-export async function deleteInvoice(id: string) {
-  // throw new Error('Failed to Delete Invoice');
-
-  try {
-    await sql`DELETE FROM invoices WHERE id = ${id}`;
-    revalidatePath('/dashboard/invoices');
-    return { message: 'Deleted Invoice' };
-  } catch (error) {
-    return { message: 'Database Error: Failed to Delete Invoice.' };
-  }
-}
-
-export async function authenticate(
-  prevState: string | undefined,
-  formData: FormData,
-) {
-  try {
-    await signIn('credentials', formData);
+    return { message: 'Successfully signed in' }; // Return success message as object
   } catch (error) {
     if (error instanceof AuthError) {
-      switch (error.type) {
-        case 'CredentialsSignin':
-          return 'Invalid credentials.';
-        default:
-          return 'Something went wrong.';
-      }
+      return error.type === 'CredentialsSignin' ? 'Invalid credentials.' : 'Something went wrong.';
     }
-    throw error;
+    return 'Something went wrong.'; // Default error message
+  }
+}
+
+// Function to create a new driver application
+export async function createDriverApplication(prevState: State, formData: FormData) {
+  const validatedFields = DriverApplicationSchema.safeParse({
+    name: formData.get('name'),
+    licenseNumber: formData.get('licenseNumber'),
+    carMake: formData.get('carMake'),
+    carModel: formData.get('carModel'),
+  });
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Missing Fields. Failed to Create Driver Application.',
+    };
+  }
+
+  const { name, licenseNumber, carMake, carModel } = validatedFields.data;
+
+  try {
+    const response = await fetch('https://banturide-api.onrender.com/admin/create-driver-application', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name,
+        licenseNumber,
+        carMake,
+        carModel,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to create driver application');
+    }
+
+    return { message: 'Driver application created successfully' };
+  } catch (error) {
+    return { message: 'Failed to create driver application: ' };
+  }
+}
+
+// Function to update an existing driver application
+export async function updateDriverApplication(id: string, prevState: State, formData: FormData) {
+  const validatedFields = DriverApplicationSchema.safeParse({
+    name: formData.get('name'),
+    licenseNumber: formData.get('licenseNumber'),
+    carMake: formData.get('carMake'),
+    carModel: formData.get('carModel'),
+    status: formData.get('status'), // Optional, since we can also update status
+  });
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Missing Fields. Failed to Update Driver Application.',
+    };
+  }
+
+  const { name, licenseNumber, carMake, carModel, status } = validatedFields.data;
+
+  try {
+    const response = await fetch(`https://banturide-api.onrender.com/admin/update-driver-application/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name,
+        licenseNumber,
+        carMake,
+        carModel,
+        status, // Update status if provided
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update driver application');
+    }
+
+    return { message: 'Driver application updated successfully' };
+  } catch (error) {
+    return { message: 'Failed to update driver application: ' };
+  }
+}
+
+// Function to approve a driver application
+export async function approveDriverApplication(id: string) {
+  try {
+    const response = await fetch(`https://banturide-api.onrender.com/admin/approve-driver-application`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ id }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to approve driver');
+    }
+
+    return { message: 'Driver approved successfully' };
+  } catch (error) {
+    return { message: 'Failed to approve driver: ' };
+  }
+}
+
+// Function to deny a driver application
+export async function denyDriverApplication(id: string) {
+  try {
+    const response = await fetch(`https://banturide-api.onrender.com/admin/deny-driver-application`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ id }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to deny driver');
+    }
+
+    return { message: 'Driver denied successfully' };
+  } catch (error) {
+    return { message: 'Failed to deny driver: ' };
+  }
+}
+
+// Function to delete a driver application (if necessary)
+export async function deleteDriverApplication(id: string) {
+  try {
+    const response = await fetch(`https://banturide-api.onrender.com/admin/delete-driver-application/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete driver application');
+    }
+
+    return { message: 'Driver application deleted successfully' };
+  } catch (error) {
+    return { message: 'Failed to delete driver application: ' };
   }
 }

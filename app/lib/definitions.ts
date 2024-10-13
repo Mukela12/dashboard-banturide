@@ -44,6 +44,31 @@ export type LatestInvoiceRaw = Omit<LatestInvoice, 'amount'> & {
   amount: number;
 };
 
+type Application = {
+  id: string;
+  insuranceCertificateImage: string;
+  avatar: string;
+  seats: string;
+  vehicleImage2: string;
+  vehicleImage1: string;
+  canDriver: boolean;
+  canDeliver: boolean;
+  carColor: string;
+  driverId: string;
+  licenseExpiry: string;
+  licenseNumber: string;
+  vehicleReg: string;
+  carMake: string;
+  nrc: string;
+  carModel: string;
+  createdAt: {
+    _seconds: number;
+    _nanoseconds: number;
+  };
+  reason: string;
+  driverVerificationStatus: string;
+};
+
 export type InvoicesTable = {
   id: string;
   customer_id: string;
@@ -86,3 +111,23 @@ export type InvoiceForm = {
   amount: number;
   status: 'pending' | 'paid';
 };
+
+export interface DriverApplication {
+  driverId: string;
+  avatar: string;
+  canDeliver: boolean;
+  canDrive: boolean;
+  carMake: string;
+  carModel: string;
+  carColor: string;
+  seats: string;
+  vehicleReg: string;
+  licenseNumber: string;
+  licenseExpiry: string;
+  driverVerificationStatus: string;
+  reason: string;
+  insuranceCertificateImage: string;
+  vehicleImage1: string;
+  vehicleImage2: string;
+  createdAt: Date;
+}
